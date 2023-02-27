@@ -8,6 +8,7 @@
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/types.h>
 #include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
@@ -286,7 +287,7 @@ static void quitsignal(int signo);
 static void rendermon(struct wl_listener *listener, void *data);
 static void requeststartdrag(struct wl_listener *listener, void *data);
 static void resize(Client *c, struct wlr_box geo, int interact);
-static void run(char *startup_cmd);
+static void run(char *startup_cmd, uid_t uid);
 static void setcursor(struct wl_listener *listener, void *data);
 static void setfloating(Client *c, int floating);
 static void setfullscreen(Client *c, int fullscreen);
@@ -1044,7 +1045,7 @@ createpointer(struct wlr_pointer *pointer)
 
 		if (libinput_device_config_scroll_get_methods(libinput_device) != LIBINPUT_CONFIG_SCROLL_NO_SCROLL)
 			libinput_device_config_scroll_set_method (libinput_device, scroll_method);
-		
+
 		if (libinput_device_config_click_get_methods(libinput_device) != LIBINPUT_CONFIG_CLICK_METHOD_NONE)
 			libinput_device_config_click_set_method (libinput_device, click_method);
 
@@ -1927,7 +1928,7 @@ resize(Client *c, struct wlr_box geo, int interact)
 }
 
 void
-run(char *startup_cmd)
+run(char *startup_cmd, uid_t uid)
 {
 	/* Add a Unix socket to the Wayland display. */
 	const char *socket = wl_display_add_socket_auto(dpy);
@@ -1941,6 +1942,11 @@ run(char *startup_cmd)
 	 * master, etc */
 	if (!wlr_backend_start(backend))
 		die("startup: backend_start");
+
+	/* In case the option is passed, drop priviledges to desired uid */
+	if (uid > 0)
+		setuid(uid);
+
 
 	/* Now that the socket exists and the backend is started, run the startup command */
 	if (startup_cmd) {
@@ -2804,10 +2810,13 @@ int
 main(int argc, char *argv[])
 {
 	char *startup_cmd = NULL;
+	uid_t uid = 0;
 	int c;
 
-	while ((c = getopt(argc, argv, "s:hv")) != -1) {
-		if (c == 's')
+	while ((c = getopt(argc, argv, "u:s:hv")) != -1) {
+		if (c == 'u')
+			uid = atoi(optarg);
+		else if (c == 's')
 			startup_cmd = optarg;
 		else if (c == 'v')
 			die("dwl " VERSION);
@@ -2821,10 +2830,10 @@ main(int argc, char *argv[])
 	if (!getenv("XDG_RUNTIME_DIR"))
 		die("XDG_RUNTIME_DIR must be set");
 	setup();
-	run(startup_cmd);
+	run(startup_cmd, uid);
 	cleanup();
 	return EXIT_SUCCESS;
 
 usage:
-	die("Usage: %s [-v] [-s startup command]", argv[0]);
+	die("Usage: %s [-v] [-u uid] [-s startup command]", argv[0]);
 }
