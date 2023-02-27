@@ -13,12 +13,12 @@ static const float fullscreen_bg[]         = {0.1, 0.1, 0.1, 1.0};
 static const char *tags[] = { "1", "2", "3", "4", "5", "6", "7", "8", "9" };
 
 static const Rule rules[] = {
-	/* app_id     title       tags mask     isfloating   monitor scratchkey */
+	/* app_id     title       tags mask     isfloating  isterm  noswallow  monitor scratchkey */
 	/* examples:
-	{ "Gimp",     NULL,       0,            1,           -1 },
+	{ "Gimp",     NULL,       0,            1,          0,      1,         -1,     0 },
 	*/
-	{ "firefox",  NULL,       1 << 8,       0,           -1,      0  },
-	{ NULL,     "scratchpad", 0,            1,           -1,     's' },
+	{ "firefox",  NULL,       1 << 8,       0,          0,      1,         -1,     0 },
+	{ NULL,     "scratchpad", 0,            1,          1,      1,         -1,    '~' },
 };
 
 /* layout(s) */
@@ -70,9 +70,9 @@ LIBINPUT_CONFIG_SCROLL_ON_BUTTON_DOWN
 static const enum libinput_config_scroll_method scroll_method = LIBINPUT_CONFIG_SCROLL_2FG;
 
 /* You can choose between:
-LIBINPUT_CONFIG_CLICK_METHOD_NONE       
-LIBINPUT_CONFIG_CLICK_METHOD_BUTTON_AREAS       
-LIBINPUT_CONFIG_CLICK_METHOD_CLICKFINGER 
+LIBINPUT_CONFIG_CLICK_METHOD_NONE
+LIBINPUT_CONFIG_CLICK_METHOD_BUTTON_AREAS
+LIBINPUT_CONFIG_CLICK_METHOD_CLICKFINGER
 */
 static const enum libinput_config_click_method click_method = LIBINPUT_CONFIG_CLICK_METHOD_BUTTON_AREAS;
 
