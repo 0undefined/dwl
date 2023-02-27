@@ -22,12 +22,12 @@ static const float fullscreen_bg[]         = {0.1, 0.1, 0.1, 1.0}; /* You can al
 static int log_level = WLR_ERROR;
 
 static const Rule rules[] = {
-	/* app_id     title       tags mask     isfloating   monitor scratchkey */
+	/* app_id     title       tags mask     isfloating  isterm  noswallow  monitor scratchkey */
 	/* examples:
-	{ "Gimp",     NULL,       0,            1,           -1 },
+	{ "Gimp",     NULL,       0,            1,          0,      1,         -1,     0 },
 	*/
-	{ "firefox",  NULL,       1 << 8,       0,           -1,      0  },
-	{ NULL,     "scratchpad", 0,            1,           -1,     's' },
+	{ "firefox",  NULL,       1 << 8,       0,          0,      1,         -1,     0 },
+	{ NULL,     "scratchpad", 0,            1,          1,      1,         -1,    '~' },
 };
 
 /* layout(s) */
