@@ -8,6 +8,7 @@
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/types.h>
 #include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
@@ -126,6 +127,7 @@ typedef struct {
 	unsigned int tags;
 	int isfloating, isurgent, isfullscreen;
 	uint32_t resize; /* configure serial of a pending resize */
+	char scratchkey;
 } Client;
 
 typedef struct {
@@ -208,6 +210,7 @@ typedef struct {
 	unsigned int tags;
 	int isfloating;
 	int monitor;
+	const char scratchkey;
 } Rule;
 
 typedef struct {
@@ -271,6 +274,7 @@ static void maplayersurfacenotify(struct wl_listener *listener, void *data);
 static void mapnotify(struct wl_listener *listener, void *data);
 static void maximizenotify(struct wl_listener *listener, void *data);
 static void monocle(Monitor *m);
+static void movestack(const Arg *arg);
 static void motionabsolute(struct wl_listener *listener, void *data);
 static void motionnotify(uint32_t time);
 static void motionrelative(struct wl_listener *listener, void *data);
@@ -285,8 +289,8 @@ static void quit(const Arg *arg);
 static void quitsignal(int signo);
 static void rendermon(struct wl_listener *listener, void *data);
 static void requeststartdrag(struct wl_listener *listener, void *data);
-static void resize(Client *c, struct wlr_box geo, int interact);
-static void run(char *startup_cmd);
+static void resize(Client *c, struct wlr_box geo, int interact, int draw_borders);
+static void run(char *startup_cmd, uid_t uid);
 static void setcursor(struct wl_listener *listener, void *data);
 static void setfloating(Client *c, int floating);
 static void setfullscreen(Client *c, int fullscreen);
@@ -297,12 +301,14 @@ static void setpsel(struct wl_listener *listener, void *data);
 static void setsel(struct wl_listener *listener, void *data);
 static void setup(void);
 static void spawn(const Arg *arg);
+static void spawnscratch(const Arg *arg);
 static void startdrag(struct wl_listener *listener, void *data);
 static void tag(const Arg *arg);
 static void tagmon(const Arg *arg);
 static void tile(Monitor *m);
 static void togglefloating(const Arg *arg);
 static void togglefullscreen(const Arg *arg);
+static void togglescratch(const Arg *arg);
 static void toggletag(const Arg *arg);
 static void toggleview(const Arg *arg);
 static void unlocksession(struct wl_listener *listener, void *data);
@@ -453,6 +459,7 @@ applyrules(Client *c)
 	Monitor *mon = selmon, *m;
 
 	c->isfloating = client_is_float_type(c);
+	c->scratchkey = 0;
 	if (!(appid = client_get_appid(c)))
 		appid = broken;
 	if (!(title = client_get_title(c)))
@@ -462,6 +469,7 @@ applyrules(Client *c)
 		if ((!r->title || strstr(title, r->title))
 				&& (!r->id || strstr(appid, r->id))) {
 			c->isfloating = r->isfloating;
+			c->scratchkey = r->scratchkey;
 			newtags |= r->tags;
 			i = 0;
 			wl_list_for_each(m, &mons, link)
@@ -724,7 +732,7 @@ closemon(Monitor *m)
 	wl_list_for_each(c, &clients, link) {
 		if (c->isfloating && c->geom.x > m->m.width)
 			resize(c, (struct wlr_box){.x = c->geom.x - m->w.width, .y = c->geom.y,
-				.width = c->geom.width, .height = c->geom.height}, 0);
+				.width = c->geom.width, .height = c->geom.height}, 0, 1);
 		if (c->mon == m)
 			setmon(c, selmon, c->tags);
 	}
@@ -773,7 +781,7 @@ commitnotify(struct wl_listener *listener, void *data)
 
 	if (c->mon && !wlr_box_empty(&box) && (box.width != c->geom.width - 2 * c->bw
 			|| box.height != c->geom.height - 2 * c->bw))
-		c->isfloating ? resize(c, c->geom, 1) : arrange(c->mon);
+		c->isfloating ? resize(c, c->geom, 1, 1) : arrange(c->mon);
 
 	/* mark a pending resize as completed */
 	if (c->resize && c->resize <= c->surface.xdg->current.configure_serial)
@@ -1598,10 +1606,40 @@ monocle(Monitor *m)
 	wl_list_for_each(c, &clients, link) {
 		if (!VISIBLEON(c, m) || c->isfloating || c->isfullscreen)
 			continue;
-		resize(c, m->w, 0);
+		resize(c, m->w, 0, !smartborders);
 	}
 	if ((c = focustop(m)))
 		wlr_scene_node_raise_to_top(&c->scene->node);
+}
+
+void
+movestack(const Arg *arg)
+{
+	Client *c, *sel = focustop(selmon);
+
+	if (wl_list_length(&clients) <= 1) {
+		return;
+	}
+
+	if (arg->i > 0) {
+		wl_list_for_each(c, &sel->link, link) {
+			if (VISIBLEON(c, selmon) || &c->link == &clients) {
+				break; /* found it */
+			}
+		}
+	} else {
+		wl_list_for_each_reverse(c, &sel->link, link) {
+			if (VISIBLEON(c, selmon) || &c->link == &clients) {
+				break; /* found it */
+			}
+		}
+		/* backup one client */
+		c = wl_container_of(c->link.prev, c, link);
+	}
+
+	wl_list_remove(&sel->link);
+	wl_list_insert(&c->link, &sel->link);
+	arrange(selmon);
 }
 
 void
@@ -1645,11 +1683,11 @@ motionnotify(uint32_t time)
 	if (cursor_mode == CurMove) {
 		/* Move the grabbed client to the new position. */
 		resize(grabc, (struct wlr_box){.x = cursor->x - grabcx, .y = cursor->y - grabcy,
-			.width = grabc->geom.width, .height = grabc->geom.height}, 1);
+			.width = grabc->geom.width, .height = grabc->geom.height}, 1, 1);
 		return;
 	} else if (cursor_mode == CurResize) {
 		resize(grabc, (struct wlr_box){.x = grabc->geom.x, .y = grabc->geom.y,
-			.width = cursor->x - grabc->geom.x, .height = cursor->y - grabc->geom.y}, 1);
+			.width = cursor->x - grabc->geom.x, .height = cursor->y - grabc->geom.y}, 1, 1);
 		return;
 	}
 
@@ -1905,11 +1943,12 @@ requeststartdrag(struct wl_listener *listener, void *data)
 }
 
 void
-resize(Client *c, struct wlr_box geo, int interact)
+resize(Client *c, struct wlr_box geo, int interact, int draw_borders)
 {
 	struct wlr_box *bbox = interact ? &sgeom : &c->mon->w;
 	client_set_bounds(c, geo.width, geo.height);
 	c->geom = geo;
+	c->bw = draw_borders ? borderpx : 0;
 	applybounds(c, bbox);
 
 	/* Update scene-graph, including borders */
@@ -1929,7 +1968,7 @@ resize(Client *c, struct wlr_box geo, int interact)
 }
 
 void
-run(char *startup_cmd)
+run(char *startup_cmd, uid_t uid)
 {
 	/* Add a Unix socket to the Wayland display. */
 	const char *socket = wl_display_add_socket_auto(dpy);
@@ -1943,6 +1982,11 @@ run(char *startup_cmd)
 	 * master, etc */
 	if (!wlr_backend_start(backend))
 		die("startup: backend_start");
+
+	/* In case the option is passed, drop priviledges to desired uid */
+	if (uid > 0)
+		setuid(uid);
+
 
 	/* Now that the socket exists and the backend is started, run the startup command */
 	if (startup_cmd) {
@@ -2010,6 +2054,8 @@ setfloating(Client *c, int floating)
 {
 	c->isfloating = floating;
 	wlr_scene_node_reparent(&c->scene->node, layers[c->isfloating ? LyrFloat : LyrTile]);
+	if (c->isfloating && !c->bw)
+		resize(c, c->mon->m, 0, 1);
 	arrange(c->mon);
 	printstatus();
 }
@@ -2027,11 +2073,11 @@ setfullscreen(Client *c, int fullscreen)
 
 	if (fullscreen) {
 		c->prev = c->geom;
-		resize(c, c->mon->m, 0);
+		resize(c, c->mon->m, 0, 0);
 	} else {
 		/* restore previous size instead of arrange for floating windows since
 		 * client positions are set by the user and cannot be recalculated */
-		resize(c, c->prev, 0);
+		resize(c, c->prev, 0, 1);
 	}
 	arrange(c->mon);
 	printstatus();
@@ -2046,6 +2092,12 @@ setlayout(const Arg *arg)
 		selmon->sellt ^= 1;
 	if (arg && arg->v)
 		selmon->lt[selmon->sellt] = (Layout *)arg->v;
+	if (!selmon->lt[selmon->sellt]->arrange) {
+		/* floating layout, draw borders around all clients */
+		Client *c;
+		wl_list_for_each(c, &clients, link)
+			resize(c, c->mon->m, 0, 1);
+	}
 	/* TODO change layout symbol? */
 	arrange(selmon);
 	printstatus();
@@ -2083,7 +2135,7 @@ setmon(Client *c, Monitor *m, unsigned int newtags)
 	}
 	if (m) {
 		/* Make sure window actually overlaps with the monitor */
-		resize(c, c->geom, 0);
+		resize(c, c->geom, 0, 1);
 		wlr_surface_send_enter(client_surface(c), m->wlr_output);
 		c->tags = newtags ? newtags : m->tagset[m->seltags]; /* assign tags of target monitor */
 		setfullscreen(c, c->isfullscreen); /* This will call arrange(c->mon) */
@@ -2320,6 +2372,16 @@ spawn(const Arg *arg)
 	}
 }
 
+void spawnscratch(const Arg *arg)
+{
+	if (fork() == 0) {
+		dup2(STDERR_FILENO, STDOUT_FILENO);
+		setsid();
+		execvp(((char **)arg->v)[1], ((char **)arg->v)+1);
+		die("dwl: execvp %s failed:", ((char **)arg->v)[1]);
+	}
+}
+
 void
 startdrag(struct wl_listener *listener, void *data)
 {
@@ -2356,7 +2418,7 @@ tagmon(const Arg *arg)
 void
 tile(Monitor *m)
 {
-	unsigned int i, n = 0, mw, my, ty;
+	unsigned int i, n = 0, mw, my, ty, draw_borders = 1;
 	Client *c;
 
 	wl_list_for_each(c, &clients, link)
@@ -2364,6 +2426,9 @@ tile(Monitor *m)
 			n++;
 	if (n == 0)
 		return;
+
+	if (n == smartborders)
+		draw_borders = 0;
 
 	if (n > m->nmaster)
 		mw = m->nmaster ? m->w.width * m->mfact : 0;
@@ -2375,11 +2440,11 @@ tile(Monitor *m)
 			continue;
 		if (i < m->nmaster) {
 			resize(c, (struct wlr_box){.x = m->w.x, .y = m->w.y + my, .width = mw,
-				.height = (m->w.height - my) / (MIN(n, m->nmaster) - i)}, 0);
+				.height = (m->w.height - my) / (MIN(n, m->nmaster) - i)}, 0, draw_borders);
 			my += c->geom.height;
 		} else {
 			resize(c, (struct wlr_box){.x = m->w.x + mw, .y = m->w.y + ty,
-				.width = m->w.width - mw, .height = (m->w.height - ty) / (n - i)}, 0);
+				.width = m->w.width - mw, .height = (m->w.height - ty) / (n - i)}, 0, draw_borders);
 			ty += c->geom.height;
 		}
 		i++;
@@ -2401,6 +2466,29 @@ togglefullscreen(const Arg *arg)
 	Client *sel = focustop(selmon);
 	if (sel)
 		setfullscreen(sel, !sel->isfullscreen);
+}
+
+void
+togglescratch(const Arg *arg)
+{
+	Client *c;
+	unsigned int found = 0;
+
+	/* search for first window that matches the scratchkey */
+	wl_list_for_each(c, &clients, link)
+		if (c->scratchkey == ((char**)arg->v)[0][0]) {
+			found = 1;
+			break;
+		}
+
+	if (found) {
+		c->tags = VISIBLEON(c, selmon) ? 0 : selmon->tagset[selmon->seltags];
+
+		focusclient(c->tags == 0 ? focustop(selmon) : c, 1);
+		arrange(selmon);
+	} else{
+		spawnscratch(arg);
+	}
 }
 
 void
@@ -2701,7 +2789,7 @@ configurex11(struct wl_listener *listener, void *data)
 		return;
 	if (c->isfloating || c->type == X11Unmanaged)
 		resize(c, (struct wlr_box){.x = event->x, .y = event->y,
-				.width = event->width, .height = event->height}, 0);
+			        .width = event->width, .height = event->height}, 0, 1);
 	else
 		arrange(c->mon);
 }
@@ -2806,10 +2894,13 @@ int
 main(int argc, char *argv[])
 {
 	char *startup_cmd = NULL;
+	uid_t uid = 0;
 	int c;
 
-	while ((c = getopt(argc, argv, "s:hv")) != -1) {
-		if (c == 's')
+	while ((c = getopt(argc, argv, "u:s:hv")) != -1) {
+		if (c == 'u')
+			uid = atoi(optarg);
+		else if (c == 's')
 			startup_cmd = optarg;
 		else if (c == 'v')
 			die("dwl " VERSION);
@@ -2823,18 +2914,18 @@ main(int argc, char *argv[])
 	if (!getenv("XDG_RUNTIME_DIR"))
 		die("XDG_RUNTIME_DIR must be set");
 	setup();
-	run(startup_cmd);
+	run(startup_cmd, uid);
 	cleanup();
 	return EXIT_SUCCESS;
 
 usage:
-	die("Usage: %s [-v] [-s startup command]", argv[0]);
+	die("Usage: %s [-v] [-u uid] [-s startup command]", argv[0]);
 }
 
 static void
 bstack(Monitor *m)
 {
-	int w, h, mh, mx, tx, ty, tw;
+	int w, h, mh, mx, tx, ty, tw, draw_borders = 1;
 	unsigned int i, n = 0;
 	Client *c;
 
@@ -2843,6 +2934,9 @@ bstack(Monitor *m)
 			n++;
 	if (n == 0)
 		return;
+
+	if (n == 1)
+		draw_borders = 0;
 
 	if (n > m->nmaster) {
 		mh = m->nmaster ? m->mfact * m->w.height : 0;
@@ -2861,11 +2955,11 @@ bstack(Monitor *m)
 			continue;
 		if (i < m->nmaster) {
 			w = (m->w.width - mx) / (MIN(n, m->nmaster) - i);
-			resize(c, (struct wlr_box){.x = m->w.x + mx, .y = m->w.y, .width = w - (2 * c->bw), .height = mh - (2 * c->bw)}, 0);
+			resize(c, (struct wlr_box){.x = m->w.x + mx, .y = m->w.y, .width = w - (2 * c->bw), .height = mh - (2 * c->bw)}, 0, draw_borders);
 			mx += c->geom.width;
 		} else {
 			h = m->w.height - mh;
-			resize(c, (struct wlr_box){.x = tx, .y = ty, .width = tw - (2 * c->bw), .height = h - (2 * c->bw)}, 0);
+			resize(c, (struct wlr_box){.x = tx, .y = ty, .width = tw - (2 * c->bw), .height = h - (2 * c->bw)}, 0, draw_borders);
 			if (tw != m->w.width)
 				tx += c->geom.width;
 		}
@@ -2875,7 +2969,7 @@ bstack(Monitor *m)
 
 static void
 bstackhoriz(Monitor *m) {
-	int w, mh, mx, tx, ty, th;
+	int w, mh, mx, tx, ty, th, draw_borders = 1;
 	unsigned int i, n = 0;
 	Client *c;
 
@@ -2884,6 +2978,9 @@ bstackhoriz(Monitor *m) {
 			n ++;
 	if (n == 0)
 		return;
+
+	if (n == 1)
+		draw_borders = 0;
 
 	if (n > m->nmaster) {
 		mh = m->nmaster ? m->mfact * m->w.height : 0;
@@ -2901,10 +2998,10 @@ bstackhoriz(Monitor *m) {
 			continue;
 		if (i < m->nmaster) {
 			w = (m->w.width - mx) / (MIN(n, m->nmaster) - i);
-			resize(c, (struct wlr_box){.x = m->w.x + mx, .y = m->w.y, .width = w - (2 * c->bw), .height = mh - (2 * c->bw)}, 0);
+			resize(c, (struct wlr_box){.x = m->w.x + mx, .y = m->w.y, .width = w - (2 * c->bw), .height = mh - (2 * c->bw)}, 0, draw_borders);
 			mx += c->geom.width;
 		} else {
-			resize(c, (struct wlr_box){.x = tx, .y = ty, .width = m->w.width - (2 * c->bw), .height =  th - (2 * c->bw)}, 0);
+			resize(c, (struct wlr_box){.x = tx, .y = ty, .width = m->w.width - (2 * c->bw), .height =  th - (2 * c->bw)}, 0, draw_borders);
 			if (th != m->w.height)
 				ty += c->geom.height;
 		}
