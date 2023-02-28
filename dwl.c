@@ -201,6 +201,7 @@ struct Monitor {
 	unsigned int seltags;
 	unsigned int sellt;
 	unsigned int tagset[2];
+	int gappx;
 	double mfact;
 	int nmaster;
 };
@@ -307,6 +308,7 @@ static void run(char *startup_cmd, uid_t uid);
 static void setcursor(struct wl_listener *listener, void *data);
 static void setfloating(Client *c, int floating);
 static void setfullscreen(Client *c, int fullscreen);
+static void setgaps(const Arg *arg);
 static void setlayout(const Arg *arg);
 static void setmfact(const Arg *arg);
 static void setmon(Client *c, Monitor *m, unsigned int newtags);
@@ -322,6 +324,7 @@ static void tile(Monitor *m);
 static void togglefloating(const Arg *arg);
 static void togglesticky(const Arg *arg);
 static void togglefullscreen(const Arg *arg);
+static void togglegaps(const Arg *arg);
 static void togglescratch(const Arg *arg);
 static void toggletag(const Arg *arg);
 static void toggleview(const Arg *arg);
@@ -955,6 +958,7 @@ createmon(struct wl_listener *listener, void *data)
 		if (!r->name || strstr(wlr_output->name, r->name)) {
 			m->mfact = r->mfact;
 			m->nmaster = r->nmaster;
+			m->gappx = gappx;
 			wlr_output_set_scale(wlr_output, r->scale);
 			wlr_xcursor_manager_load(cursor_mgr, r->scale);
 			m->lt[0] = m->lt[1] = r->lt;
@@ -2186,6 +2190,17 @@ setfullscreen(Client *c, int fullscreen)
 }
 
 void
+setgaps(const Arg *arg) {
+	if ((arg->i == 0) || (selmon->gappx + arg->i < 0))
+		selmon->gappx = gappx;
+	else if (selmon->gappx + arg->i < 0)
+		selmon->gappx = 0;
+	else
+		selmon->gappx += arg->i;
+	arrange(selmon);
+}
+
+void
 setlayout(const Arg *arg)
 {
 	if (!selmon)
@@ -2522,6 +2537,7 @@ void
 tile(Monitor *m)
 {
 	unsigned int i, n = 0, mw, my, ty, draw_borders = 1;
+	int gap = 0;
 	Client *c;
 
 	wl_list_for_each(c, &clients, link)
@@ -2530,25 +2546,28 @@ tile(Monitor *m)
 	if (n == 0)
 		return;
 
+	if (n > 1)
+		gap = m->gappx;
+
 	if (n == smartborders)
 		draw_borders = 0;
 
 	if (n > m->nmaster)
 		mw = m->nmaster ? m->w.width * m->mfact : 0;
 	else
-		mw = m->w.width;
-	i = my = ty = 0;
+		mw = m->w.width - gap;
+	i = 0; my = ty = gap;
 	wl_list_for_each(c, &clients, link) {
 		if (!VISIBLEON(c, m) || c->isfloating || c->isfullscreen)
 			continue;
 		if (i < m->nmaster) {
-			resize(c, (struct wlr_box){.x = m->w.x, .y = m->w.y + my, .width = mw,
-				.height = (m->w.height - my) / (MIN(n, m->nmaster) - i)}, 0, draw_borders);
-			my += c->geom.height;
+			resize(c, (struct wlr_box){.x = m->w.x + gap, .y = m->w.y + my,
+				.width = mw - gap, .height = (m->w.height - my - gap) / (MIN(n, m->nmaster) - i)}, 0, draw_borders);
+			my += c->geom.height + gap;
 		} else {
-			resize(c, (struct wlr_box){.x = m->w.x + mw, .y = m->w.y + ty,
-				.width = m->w.width - mw, .height = (m->w.height - ty) / (n - i)}, 0, draw_borders);
-			ty += c->geom.height;
+			resize(c, (struct wlr_box){.x = m->w.x + mw + gap, .y = m->w.y + ty,
+				.width = m->w.width - mw - 2 * gap, .height = (m->w.height - ty) / (n - i) - gap}, 0, draw_borders);
+			ty += c->geom.height + gap;
 		}
 		i++;
 	}
@@ -2579,6 +2598,14 @@ togglefullscreen(const Arg *arg)
 	Client *sel = focustop(selmon);
 	if (sel)
 		setfullscreen(sel, !sel->isfullscreen);
+}
+
+void togglegaps(const Arg *arg) {
+	if (selmon->gappx == 0)
+		selmon->gappx = gappx;
+	else
+		selmon->gappx = 0;
+	arrange(selmon);
 }
 
 void

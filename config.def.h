@@ -8,6 +8,7 @@ static const int sloppyfocus               = 1;  /* focus follows mouse */
 static const int bypass_surface_visibility = 0;  /* 1 means idle inhibitors will disable idle tracking even if it's surface isn't visible  */
 static const int smartborders              = 1;
 static const unsigned int borderpx         = 2;  /* border pixel of windows */
+static const unsigned int gappx            = 5;  /* default gap size */
 static const float rootcolor[]             = RGBAf(  8.f,   8.f,   8.f, 1.f);
 static const float bordercolor[]           = RGBAf( 50.f,  52.f,  55.f, 1.f);
 static const float focuscolor[]            = RGBAf(174.f, 129.f, 255.f, 1.f);
@@ -163,6 +164,12 @@ static const Key keys[] = {
 	{ MODKEY,                    XKB_KEY_m,          spawn,            SHCMD("open_man") },
 
 	{ 0,                         XKB_KEY_Print,      spawn,            SHCMD("grim -g \"$(slurp)\" - | tee screenshot.png | wl-copy -t image/png") },
+
+	/* Gaps */
+	{ MODKEY,                    XKB_KEY_minus,      setgaps,          {.i = -1} },
+	{ MODKEY,                    XKB_KEY_equal,      setgaps,          {.i = +1} },
+	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_plus,       setgaps,          {.i =  0} },
+	{ MODKEY,                    XKB_KEY_a,          togglegaps,       {0} },
 
 	TAGKEYS(          XKB_KEY_1, XKB_KEY_exclam,                       0),
 	TAGKEYS(          XKB_KEY_2, XKB_KEY_at,                           1),
