@@ -24,6 +24,7 @@ static const Rule rules[] = {
 	*/
 	{ "firefox",  NULL,       1 << 1,       0,          0,      1,         -1,     0 },
 	{ NULL,     "scratchpad", 0,            1,          1,      1,         -1,    '~' },
+	{ TERMINAL,   NULL,       0,            0,          1,      1,         -1,     0 },
 };
 
 /* layout(s) */
@@ -110,8 +111,9 @@ static const enum libinput_config_tap_button_map button_map = LIBINPUT_CONFIG_TA
 	{ MODKEY|WLR_MODIFIER_CTRL|WLR_MODIFIER_SHIFT,SKEY,toggletag, {.ui = 1 << TAG} }
 
 /* helper for spawning shell commands */
-#define SHWIN(title, cmd) { .v = (const char*[]){ TERMINAL, "-d", "none", "-T", title, cmd, NULL } }
 #define SHCMD(cmd) { .v = (const char*[]){ "/bin/sh", "-c", cmd, NULL } }
+#define SHWIN(title, cmd) { .v = (const char*[]){ "/bin/sh", "-c", TERMINAL " -T " title " " cmd, NULL } }
+//#define SHWIN(title, cmd) SHCMD(TERMINAL " -d none -T " title " " cmd)
 
 /* commands */
 static const char *browsercmd[]  = { "firefox-developer-edition", NULL };
@@ -128,14 +130,12 @@ static const Key keys[] = {
 	{ MODKEY,                    XKB_KEY_Return,     spawn,            {.v = termcmd} },
 	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_Return,     togglescratch,    {.v = scratchpadcmd } },
 
-	{ MODKEY,                    XKB_KEY_b,          toggle_visibility, {0}},
-
 	{ MODKEY,                    XKB_KEY_j,          focusstack,       {.i = +1} },
 	{ MODKEY,                    XKB_KEY_k,          focusstack,       {.i = -1} },
 	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_J,          movestack,        {.i = +1} },
 	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_K,          movestack,        {.i = -1} },
 	{ MODKEY,                    XKB_KEY_i,          incnmaster,       {.i = +1} },
-	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_i,          incnmaster,       {.i = -1} },
+	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_I,          incnmaster,       {.i = -1} },
 	{ MODKEY,                    XKB_KEY_h,          setmfact,         {.f = -0.05} },
 	{ MODKEY,                    XKB_KEY_l,          setmfact,         {.f = +0.05} },
 	/*{ MODKEY,                    XKB_KEY_Return,     zoom,             {0} },*/
@@ -159,8 +159,8 @@ static const Key keys[] = {
 	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_greater,    tagmon,           {.i = WLR_DIRECTION_RIGHT} },
 
 	{ MODKEY,                    XKB_KEY_w,          spawn,            {.v = browsercmd} },
-	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_z,          spawn,            SHWIN("Open Document", "open_book") },
-	{ MODKEY,                    XKB_KEY_m,          spawn,            SHWIN("Man Finder", "open_man") },
+	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_Z,          spawn,            SHCMD(TERMINAL " open_book") },
+	{ MODKEY,                    XKB_KEY_m,          spawn,            SHCMD("open_man") },
 
 	{ 0,                         XKB_KEY_Print,      spawn,            SHCMD("grim -g \"$(slurp)\" - | tee screenshot.png | wl-copy -t image/png") },
 
