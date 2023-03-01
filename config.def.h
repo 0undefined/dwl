@@ -24,7 +24,7 @@ static const Rule rules[] = {
 	{ "Gimp",     NULL,       0,            1,          0,      1,         -1,     0 },
 	*/
 	{ "firefox",  NULL,       1 << 1,       0,          0,      1,         -1,     0 },
-	{ NULL,     "scratchpad", 0,            1,          1,      1,         -1,    '~' },
+	{ NULL,     "scratchpad", 0,            1,          1,      1,         -1,    's' },
 	{ TERMINAL,   NULL,       0,            0,          1,      1,         -1,     0 },
 };
 
@@ -118,11 +118,11 @@ static const enum libinput_config_tap_button_map button_map = LIBINPUT_CONFIG_TA
 
 /* commands */
 static const char *browsercmd[]  = { "firefox-developer-edition", NULL };
-static const char *menucmd[]     = { "bemenu-run", "-p", "$", NULL };
+static const char *menucmd[]     = { "bemenu_run_history", "-p", "$", NULL };
 static const char *termcmd[]     = { TERMINAL, NULL };
 
 /* named scratchpads - First arg only serves to match against key in rules*/
-static const char *scratchpadcmd[] = { "s", TERMINAL, "-T", "scratchpad", NULL };
+static const char *scratchpadcmd[] = { "s", TERMINAL, "-d", "none", "-T", "scratchpad", "-a", "scratchpad", NULL };
 
 static const Key keys[] = {
 	/* Note that Shift changes certain key codes: c -> C, 2 -> at, etc. */
@@ -139,9 +139,9 @@ static const Key keys[] = {
 	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_I,          incnmaster,       {.i = -1} },
 	{ MODKEY,                    XKB_KEY_h,          setmfact,         {.f = -0.05} },
 	{ MODKEY,                    XKB_KEY_l,          setmfact,         {.f = +0.05} },
-	/*{ MODKEY,                    XKB_KEY_Return,     zoom,             {0} },*/
+	{ MODKEY,                    XKB_KEY_n,     zoom,             {0} },
 	{ MODKEY,                    XKB_KEY_Tab,        view,             {0} },
-	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_q,          killclient,       {0} },
+	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_Q,          killclient,       {0} },
 	{ MODKEY,                    XKB_KEY_t,          setlayout,        {.v = &layouts[0]} },
 	/*{ MODKEY,                    XKB_KEY_f,          setlayout,        {.v = &layouts[1]} },*/
 	/*{ MODKEY,                    XKB_KEY_m,          setlayout,        {.v = &layouts[2]} },*/
@@ -160,10 +160,31 @@ static const Key keys[] = {
 	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_greater,    tagmon,           {.i = WLR_DIRECTION_RIGHT} },
 
 	{ MODKEY,                    XKB_KEY_w,          spawn,            {.v = browsercmd} },
-	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_Z,          spawn,            SHCMD(TERMINAL " open_book") },
+	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_Z,          spawn,            SHCMD(TERMINAL " -d none open_book") },
 	{ MODKEY,                    XKB_KEY_m,          spawn,            SHCMD("open_man") },
+	{ MODKEY,                    XKB_KEY_g,          spawn,            SHCMD("emoji") },
+	{ MODKEY,                    XKB_KEY_e,          spawn,            SHCMD(TERMINAL " -d none btop") },
+	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_E,          spawn,            SHCMD(TERMINAL " -d none nmtui") },
 
 	{ 0,                         XKB_KEY_Print,      spawn,            SHCMD("grim -g \"$(slurp)\" - | tee screenshot.png | wl-copy -t image/png") },
+
+	{ WLR_MODIFIER_CTRL,                    XKB_KEY_space, spawn,      SHCMD("makoctl dismiss")},
+	{ WLR_MODIFIER_CTRL|WLR_MODIFIER_SHIFT, XKB_KEY_space, spawn,      SHCMD("makoctl dismiss --all")},
+	{ WLR_MODIFIER_CTRL|MODKEY,             XKB_KEY_space, spawn,      SHCMD("makoctl restore")},
+
+	/* Audio controls */
+	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_M,               spawn,       SHCMD("pamixer -t; pkill -4 someblocks") },
+	{ 0,                         XKB_KEY_XF86AudioMute,   spawn,       SHCMD("pamixer -t; pkill -4 someblocks") },
+	{ 0,                         XKB_KEY_XF86AudioRaiseVolume, spawn,  SHCMD("pamixer --allow-boost -i 5; pkill -4 someblocks") },
+	{ 0,                         XKB_KEY_XF86AudioLowerVolume, spawn,  SHCMD("pamixer --allow-boost -d 5; pkill -4 someblocks") },
+
+	/* Monitor brightness controls */
+	{ 0,                         XKB_KEY_XF86MonBrightnessUp,   spawn, SHCMD("brightnessctl s 10%+") },
+	{ 0,                         XKB_KEY_XF86MonBrightnessDown, spawn, SHCMD("brightnessctl s 10%-") },
+
+	/* Misc. controls */
+	{ 0,                         XKB_KEY_XF86Favorites,      spawn,    SHCMD("toggletouchpad") },
+	{ 0,                         XKB_KEY_XF86TouchpadToggle, spawn,    SHCMD("toggletouchpad") },
 
 	/* Gaps */
 	{ MODKEY,                    XKB_KEY_minus,      setgaps,          {.i = -1} },
