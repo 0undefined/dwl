@@ -113,13 +113,11 @@ static const enum libinput_config_tap_button_map button_map = LIBINPUT_CONFIG_TA
 
 /* helper for spawning shell commands */
 #define SHCMD(cmd) { .v = (const char*[]){ "/bin/sh", "-c", cmd, NULL } }
-#define SHWIN(title, cmd) { .v = (const char*[]){ "/bin/sh", "-c", TERMINAL " -T " title " " cmd, NULL } }
-//#define SHWIN(title, cmd) SHCMD(TERMINAL " -d none -T " title " " cmd)
 
 /* commands */
 static const char *browsercmd[]  = { "firefox-developer-edition", NULL };
 static const char *menucmd[]     = { "bemenu_run_history", "-p", "$", NULL };
-static const char *termcmd[]     = { TERMINAL, NULL };
+static const char *termcmd[]     = { TERMINAL, "-d", "none", NULL };
 
 /* named scratchpads - First arg only serves to match against key in rules*/
 static const char *scratchpadcmd[] = { "s", TERMINAL, "-d", "none", "-T", "scratchpad", "-a", "scratchpad", NULL };
