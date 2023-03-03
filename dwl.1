@@ -45,65 +45,116 @@ by editing the sources, in particular
 .Pa config.h .
 The default key bindings are as follows:
 .Bl -tag -width 20n -offset indent -compact
-.It Mod-[1-9]
+.It Logo-[1-9]
 Show only all windows with a tag.
-.It Mod-Ctrl-[1-9]
+.It Logo-Ctrl-[1-9]
 Show all windows with a tag.
-.It Mod-Shift-[1-9]
+.It Logo-Shift-[1-9]
 Move window to a single tag.
-.It Mod-Ctrl-Shift-[1-9]
+.It Logo-Ctrl-Shift-[1-9]
 Toggle tag for window.
-.It Mod-p
+.It Logo-d
 Spawn
 .Nm bemenu-run .
-.It Mod-Shift-Return
+.It Logo-Return
 Spawn
 .Nm foot .
-.It Mod-[jk]
+.It Logo-Shift-Return
+Spawn scratchpad, currently set to
+.Nm foot .
+.It Logo-[jk]
 Move focus down/up the stack.
-.It Mod-[vb]
+.It Logo-[vc]
 Focus the first or last client.
-.It Mod-Shift-[jk]
+.It Logo-Shift-[jk]
 Move client down/up the stack.
-.It Mod-[vb]
+.It Logo-[vc]
 Move client to the top or last in the stack.
-.It Mod-[id]
-Increase/decrease number of windows in master area.
-.It Mod-[hl]
+.It Logo-i
+Increase number of windows in master area.
+.It Logo-Shift-i
+Decrease number of windows in master area.
+.It Logo-[hl]
 Decrease/increase master area.
-.It Mod-Return
+.It Logo-n
 Move window on top of stack or switch top of stack with second window.
-.It Mod-Tab
+.It Logo-Tab
 Show only all windows with previous tag.
-.It Mod-Shift-c
+.It Logo-Shift-q
 Close window.
-.It Mod-t
+.It Logo-t
 Switch to tabbed layout.
-.It Mod-f
-Switch to floating layout.
-.It Mod-m
-Switch to monocle layout.
-.It Mod-Space
-Switch to previous layout.
-.It Mod-Shift-Space
+.It Logo-Shift-Space
 Toggle floating state of window.
-.It Mod-e
+.It Logo-f
 Toggle fullscreen state of window.
-.It Mod-0
+.It Logo-0
 Show all windows.
-.It Mod-Shift-0
+.It Logo-Shift-0
 Set all tags for window.
-.It Mod-,
+.It Logo-,
 Move focus to previous monitor.
-.It Mod-.
+.It Logo-.
 Move focus to next monitor.
-.It Mod-Shift-,
+.It Logo-Shift-,
 Move window to previous monitor.
-.It Mod-Shift-.
+.It Logo-Shift-.
 Move window to next monitor.
-.It Mod-Shift-q
-Quit
 .Nm .
+.It Logo-x
+Start
+.Nm swaylock .
+.It Logo-w
+Start
+.Nm firefox-developer-edition .
+.It Logo-z
+Spawn
+.Nm zathura .
+.It Logo-Shift-z
+Spawn
+.Nm open_book
+script .
+.It Logo-Shift-z
+Spawn
+.Nm open_man .
+.It Logo-e
+Spawn
+.Nm btop .
+.It Logo-Shift-e
+Spawn
+.Nm nmtui .
+.It Print
+Take a screenshot using
+.Nm grim ,
+.Nm Slurp ,
+and
+.Nm wl-copy
+.It Ctrl-Space
+Dismiss
+.Nm mako
+notification.
+.It Ctrl-Shift-Space
+Dismiss all
+.Nm mako
+notifications.
+.It Ctrl-Logo-Space
+Show previous
+.Nm mako
+notification.
+.It Logo-Shift-Space, VolumeMute
+Mute volume.
+.It Logo-], IncreaseVolume
+Increase volume.
+.It Logo-[, DecreaseVolume
+Decrease volume.
+.It Logo-Minus
+Decrease gap size.
+.It Logo-equal
+Increase gap size.
+.It Logo-Plus
+Reset gap size.
+.It Logo-Shift-Backspace
+Quit
 .El
 These might differ depending on your keyboard layout.
 .Sh ENVIRONMENT
