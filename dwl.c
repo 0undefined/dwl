@@ -1626,7 +1626,20 @@ movestack(const Arg *arg)
 		return;
 	}
 
-	if (arg->i > 0) {
+	if (arg->i == 0) {
+		/* Put the selected client on top */
+		wl_list_remove(&sel->link);
+		wl_list_insert(&clients, &sel->link);
+		arrange(selmon);
+		return;
+	} else if (arg->i == INT_MAX) {
+		/* Get the last element */
+		wl_list_for_each_reverse(c, &clients, link) {
+			if (!VISIBLEON(c, selmon) || c->isfloating || c->isfullscreen)
+				continue;
+			break;
+		}
+	} else if (arg->i > 0) {
 		wl_list_for_each(c, &sel->link, link) {
 			if (VISIBLEON(c, selmon) || &c->link == &clients) {
 				break; /* found it */
