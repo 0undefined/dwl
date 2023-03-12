@@ -1285,7 +1285,21 @@ focusstack(const Arg *arg)
 	Client *c, *sel = focustop(selmon);
 	if (!sel || sel->isfullscreen)
 		return;
-	if (arg->i > 0) {
+	/* If i == 0 select the first client */
+	if (arg->i == 0) {
+		wl_list_for_each(c, &clients, link) {
+			if (!VISIBLEON(c, selmon) || c->isfloating || c->isfullscreen)
+				continue;
+			break;
+		}
+	/* If i == INT_MAX select the last client */
+	} else if (arg->i == INT_MAX) {
+		wl_list_for_each_reverse(c, &clients, link) {
+			if (!VISIBLEON(c, selmon) || c->isfloating || c->isfullscreen)
+				continue;
+			break;
+		}
+	} else if (arg->i > 0) {
 		wl_list_for_each(c, &sel->link, link) {
 			if (&c->link == &clients)
 				continue; /* wrap past the sentinel node */
