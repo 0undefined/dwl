@@ -1,21 +1,17 @@
 # dwl - dwm for Wayland
 
-Join us on our IRC channel: [#dwl on Libera Chat]  
-Or on our [Discord server].
-
 dwl is a compact, hackable compositor for [Wayland] based on [wlroots]. It is
 intended to fill the same space in the Wayland world that dwm does in X11,
 primarily in terms of philosophy, and secondarily in terms of functionality.
-Like dwm, dwl is:
 
-- Easy to understand, hack on, and extend with patches
-- One C source file (or a very small number) configurable via `config.h`
-- Limited to 2200 SLOC to promote hackability
-- Tied to as few external dependencies as possible
+This is my personalized fork from [djpohly](https://github.com/djpohly/dwl/).
 
-dwl is not meant to provide every feature under the sun. Instead, like dwm, it
-sticks to features which are necessary, simple, and straightforward to implement
-given the base on which it is built. Implemented default features are:
+Make sure to check out the default keybindings in the
+[config.def.h](https://github.com/0undefined/dwl/blob/main/config.def.h#L127)
+file before running.
+
+I generally intend to keep this fork up to date to the upstream repository.
+In general I tend to use destructive rebasing to keep the additional commits minimal.
 
 - Any features provided by dwm/Xlib: simple window borders, tags, keybindings,
   client rules, mouse move/resize. Providing a built-in status bar is an
@@ -137,10 +133,6 @@ script with the line
     exec <&-
 
 To get a list of status bars that work with dwl consult our [wiki].
-
-## Replacements for X applications
-
-You can find a [list of useful resources on our wiki].
 
 ## Acknowledgements
 
