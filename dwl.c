@@ -314,6 +314,7 @@ static void updatetitle(struct wl_listener *listener, void *data);
 static void urgent(struct wl_listener *listener, void *data);
 static void view(const Arg *arg);
 static void virtualkeyboard(struct wl_listener *listener, void *data);
+static void warpcursortoclient(Client *c);
 static Monitor *xytomon(double x, double y);
 static struct wlr_scene_node *xytonode(double x, double y, struct wlr_surface **psurface,
 		Client **pc, LayerSurface **pl, double *nx, double *ny);
@@ -1274,6 +1275,8 @@ focusclient(Client *c, int lift)
 
 	/* Activate the new client */
 	client_activate_surface(client_surface(c), 1);
+
+	if (mousefollowsfocus) warpcursortoclient(c);
 }
 
 void
@@ -2621,6 +2624,15 @@ virtualkeyboard(struct wl_listener *listener, void *data)
 {
 	struct wlr_virtual_keyboard_v1 *keyboard = data;
 	createkeyboard(&keyboard->keyboard);
+}
+
+void
+warpcursortoclient(Client *c) {
+	struct wlr_box mg = c->mon->m;
+	struct wlr_box cg = c->geom;
+	wlr_cursor_warp_absolute(cursor, NULL,
+		((double)cg.x + (double)cg.width / 2.0) / (double)mg.width,
+		((double)cg.y + (double)cg.height / 2.0) / (double)mg.height);
 }
 
 Monitor *
