@@ -2613,9 +2613,11 @@ void
 warpcursortoclient(Client *c) {
 	struct wlr_box mg = c->mon->m;
 	struct wlr_box cg = c->geom;
+	if (!VISIBLEON(c, selmon)) return;
 	wlr_cursor_warp_absolute(cursor, NULL,
 		((double)cg.x + (double)cg.width / 2.0) / (double)mg.width,
 		((double)cg.y + (double)cg.height / 2.0) / (double)mg.height);
+	motionnotify(0);
 }
 
 Monitor *
