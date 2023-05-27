@@ -324,6 +324,7 @@ static const char broken[] = "broken";
 static const char *cursor_image = "left_ptr";
 static pid_t child_pid = -1;
 static int locked;
+uint32_t last_motion;
 static void *exclusive_focus;
 static struct wl_display *dpy;
 static struct wlr_backend *backend;
@@ -1633,6 +1634,8 @@ motionnotify(uint32_t time)
 	if (time) {
 		IDLE_NOTIFY_ACTIVITY;
 
+		last_motion = time;
+
 		/* Update selmon (even while dragging a window) */
 		if (sloppyfocus)
 			selmon = xytomon(cursor->x, cursor->y);
@@ -2613,6 +2616,12 @@ void
 warpcursortoclient(Client *c) {
 	struct wlr_box *mg = (c->mon) ? &c->mon->m : NULL;
 	struct wlr_box cg = c->geom;
+	struct timespec now;
+
+	/* Do not warp the cursor based on user mouse input */
+	clock_gettime(CLOCK_MONOTONIC, &now);
+	if (((now.tv_sec * 1000 + now.tv_nsec / 1000000) - last_motion) < 500) return;
+
 	if (!mg || !VISIBLEON(c, selmon)) return;
 	wlr_cursor_warp_absolute(cursor, NULL,
 		((double)cg.x + (double)cg.width / 2.0) / (double)mg->width,
