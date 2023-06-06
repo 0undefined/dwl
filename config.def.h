@@ -22,6 +22,16 @@ static const float fullscreen_bg[]         = {0.1, 0.1, 0.1, 1.0}; /* You can al
 /* logging */
 static int log_level = WLR_ERROR;
 
+/* Autostart */
+static const char *const autostart[] = {
+        "swaybg", "-m", "stretch", "-i", "~/pictures/bg/nature_blue.png", NULL,
+        "someblocks", NULL,
+        NULL /* terminate */
+};
+
+/* tagging - tagcount must be no greater than 31 */
+static const int tagcount = 9;
+
 static const Rule rules[] = {
 	/* app_id     title       tags mask     iscentered isfloating  isterm  noswallow  monitor scratchkey */
 	/* examples:
