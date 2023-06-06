@@ -486,6 +486,8 @@ arrange(Monitor *m)
 	if (m->lt[m->sellt]->arrange)
 		m->lt[m->sellt]->arrange(m);
 	motionnotify(0);
+
+	if (c && mousefollowsfocus) warpcursortoclient(c);
 	checkidleinhibitor(NULL);
 }
 
@@ -1048,7 +1050,7 @@ createpointer(struct wlr_pointer *pointer)
 
 		if (libinput_device_config_scroll_get_methods(libinput_device) != LIBINPUT_CONFIG_SCROLL_NO_SCROLL)
 			libinput_device_config_scroll_set_method (libinput_device, scroll_method);
-		
+
 		if (libinput_device_config_click_get_methods(libinput_device) != LIBINPUT_CONFIG_CLICK_METHOD_NONE)
 			libinput_device_config_click_set_method (libinput_device, click_method);
 
@@ -1275,19 +1277,22 @@ focusclient(Client *c, int lift)
 
 	/* Activate the new client */
 	client_activate_surface(client_surface(c), 1);
-
-	if (mousefollowsfocus) warpcursortoclient(c);
 }
 
 void
 focusmon(const Arg *arg)
 {
 	int i = 0, nmons = wl_list_length(&mons);
+	Client *c = NULL;
 	if (nmons)
 		do /* don't switch to disabled mons */
 			selmon = dirtomon(arg->i);
 		while (!selmon->wlr_output->enabled && i++ < nmons);
-	focusclient(focustop(selmon), 1);
+
+	c = focustop(selmon);
+	focusclient(c, 1);
+
+	if (mousefollowsfocus) warpcursortoclient(c);
 }
 
 void
@@ -1314,6 +1319,7 @@ focusstack(const Arg *arg)
 	}
 	/* If only one client is visible on selmon, then c == sel */
 	focusclient(c, 1);
+	if (mousefollowsfocus) warpcursortoclient(c);
 }
 
 /* We probably should change the name of this, it sounds like
@@ -2634,7 +2640,6 @@ warpcursortoclient(Client *c) {
 	wlr_cursor_warp_absolute(cursor, NULL,
 		((double)cg.x + (double)cg.width / 2.0) / (double)mg.width,
 		((double)cg.y + (double)cg.height / 2.0) / (double)mg.height);
-	motionnotify(0);
 }
 
 Monitor *
