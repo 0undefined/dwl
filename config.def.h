@@ -11,7 +11,7 @@ static const int bypass_surface_visibility = 0;  /* 1 means idle inhibitors will
 static const int smartborders              = 1;
 static const unsigned int borderpx         = 2;  /* border pixel of windows */
 static const float bordercolor[]           = RGBAf(0x44, 0x44, 0x44, 0xff);
-static const float focuscolor[]            = RGBAf(0x00, 0x55, 0x77, 0xff);
+static const float focuscolor[]            = RGBAf(174.f, 129.f, 255.f, 1.f);
 static const float urgentcolor[]           = RGBAf(0xff, 0x00, 0x00, 0xff);
 static const unsigned int gappx            = 5;  /* default gap size */
 /* To conform the xdg-protocol, set the alpha to zero to restore the old behavior */
