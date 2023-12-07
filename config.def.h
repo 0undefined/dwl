@@ -7,12 +7,16 @@
 static const int sloppyfocus               = 1;  /* focus follows mouse */
 static const int bypass_surface_visibility = 0;  /* 1 means idle inhibitors will disable idle tracking even if it's surface isn't visible  */
 static const unsigned int borderpx         = 1;  /* border pixel of windows */
+static const unsigned int gappx            = 5;  /* border pixel of windows */
 static const float rootcolor[]             = COLOR(0x222222ff);
 static const float bordercolor[]           = COLOR(0x444444ff);
-static const float focuscolor[]            = COLOR(0x005577ff);
+static const float focuscolor[]            = COLOR(0xae81ff7f);
 static const float urgentcolor[]           = COLOR(0xff0000ff);
 /* To conform the xdg-protocol, set the alpha to zero to restore the old behavior */
 static const float fullscreen_bg[]         = {0.1, 0.1, 0.1, 1.0}; /* You can also use glsl colors */
+
+/* cursor warping */
+static const bool cursor_warp = true;
 
 /* Autostart */
 static const char *const autostart[] = {
@@ -27,11 +31,11 @@ static const char *const autostart[] = {
 static int log_level = WLR_ERROR;
 
 static const Rule rules[] = {
-	/* app_id     title       tags mask  iscentered  isfloating  monitor */
+	/* app_id     title       tags mask  iscentered  isfloating  isterm  noswallow  monitor */
 	/* examples:
-	{ "Gimp",     NULL,       0,         0,          1,          -1 },
+	{ "Gimp",     NULL,       0,         0,          1,          0,      0,         -1 },
 	*/
-	{ "firefox",  NULL,       1 << 8,    0,          1,          -1 },
+	{ "firefox",  NULL,       1 << 8,    0,          1,          0,      1,         -1 },
 };
 
 /* layout(s) */
@@ -108,7 +112,7 @@ LIBINPUT_CONFIG_TAP_MAP_LMR -- 1/2/3 finger tap maps to left/middle/right
 static const enum libinput_config_tap_button_map button_map = LIBINPUT_CONFIG_TAP_MAP_LRM;
 
 /* If you want to use the windows key for MODKEY, use WLR_MODIFIER_LOGO */
-#define MODKEY WLR_MODIFIER_ALT
+#define MODKEY WLR_MODIFIER_LOGO
 
 #define TAGKEYS(KEY,SKEY,TAG) \
 	{ MODKEY,                    KEY,            view,            {.ui = 1 << TAG} }, \
@@ -120,23 +124,27 @@ static const enum libinput_config_tap_button_map button_map = LIBINPUT_CONFIG_TA
 #define SHCMD(cmd) { .v = (const char*[]){ "/bin/sh", "-c", cmd, NULL } }
 
 /* commands */
-static const char *termcmd[] = { "foot", NULL };
-static const char *menucmd[] = { "bemenu-run", NULL };
+/* commands */
+static const char *browsercmd[]   = { "firefox-developer-edition", NULL };
+static const char *browsercmd_p[] = { "firefox-developer-edition", "-P", NULL };
+static const char *menucmd[]      = { "bemenu_run_history", "-p", "$", NULL };
+static const char *termcmd[]      = { "foot", "-d", "none", NULL };
+//static const char *termcmd[] = { "foot", NULL };
+//static const char *menucmd[] = { "bemenu-run", NULL };
 
 static const Key keys[] = {
 	/* Note that Shift changes certain key codes: c -> C, 2 -> at, etc. */
 	/* modifier                  key                 function        argument */
-	{ MODKEY,                    XKB_KEY_p,          spawn,          {.v = menucmd} },
-	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_Return,     spawn,          {.v = termcmd} },
+	{ MODKEY,                    XKB_KEY_d,          spawn,          {.v = menucmd} },
+	{ MODKEY,                    XKB_KEY_Return,     spawn,          {.v = termcmd} },
 	{ MODKEY,                    XKB_KEY_j,          focusstack,     {.i = +1} },
 	{ MODKEY,                    XKB_KEY_k,          focusstack,     {.i = -1} },
 	{ MODKEY,                    XKB_KEY_i,          incnmaster,     {.i = +1} },
-	{ MODKEY,                    XKB_KEY_d,          incnmaster,     {.i = -1} },
+	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_I,          incnmaster,     {.i = -1} },
 	{ MODKEY,                    XKB_KEY_h,          setmfact,       {.f = -0.05} },
 	{ MODKEY,                    XKB_KEY_l,          setmfact,       {.f = +0.05} },
-	{ MODKEY,                    XKB_KEY_Return,     zoom,           {0} },
 	{ MODKEY,                    XKB_KEY_Tab,        view,           {0} },
-	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_C,          killclient,     {0} },
+	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_Q,          killclient,     {0} },
 	{ MODKEY,                    XKB_KEY_t,          setlayout,      {.v = &layouts[0]} },
 	{ MODKEY,                    XKB_KEY_f,          setlayout,      {.v = &layouts[1]} },
 	{ MODKEY,                    XKB_KEY_m,          setlayout,      {.v = &layouts[2]} },
@@ -149,6 +157,49 @@ static const Key keys[] = {
 	{ MODKEY,                    XKB_KEY_period,     focusmon,       {.i = WLR_DIRECTION_RIGHT} },
 	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_less,       tagmon,         {.i = WLR_DIRECTION_LEFT} },
 	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_greater,    tagmon,         {.i = WLR_DIRECTION_RIGHT} },
+	{ MODKEY,                    XKB_KEY_minus,      setgaps,        {.i = -1} },
+	{ MODKEY,                    XKB_KEY_equal,      setgaps,        {.i = +1} },
+	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_plus,       setgaps,        {.i =  0} },
+	{ MODKEY,                    XKB_KEY_a,          togglegaps,     {0} },
+
+	{ MODKEY,                    XKB_KEY_x,          spawn,          SHCMD("swaylock") },
+	{ 0,                         XKB_KEY_Print,      spawn,          SHCMD("grim -g \"$(slurp)\" - | tee screenshot.png | wl-copy -t image/png") },
+	{ MODKEY,                    XKB_KEY_Insert,     spawn,          SHCMD("notify-send \"Clipboard contents\" \"$(wl-paste -n)\"") },
+	{ MODKEY,                    XKB_KEY_g,          spawn,          SHCMD("emoji") },
+
+	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_E,          spawn,          SHCMD("foot -d none nmtui") },
+	{ MODKEY,                    XKB_KEY_e,          spawn,          SHCMD("foot -d none btop") },
+
+	{ MODKEY,                    XKB_KEY_w,          spawn,          {.v = browsercmd} },
+	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_W,          spawn,          {.v = browsercmd_p} },
+
+	{ MODKEY,                    XKB_KEY_z,          spawn,          SHCMD("zathura") },
+	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_Z,          spawn,          SHCMD("foot -d none open_book") },
+	{ MODKEY,                    XKB_KEY_m,          spawn,          SHCMD("open_man") },
+
+	/* Audio controls */
+	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_M,               spawn,     SHCMD("pamixer -t && sigblock -b vol") },
+	{ 0,                         XKB_KEY_XF86AudioMute,   spawn,     SHCMD("pamixer -t && sigblock -b vol") },
+	{ 0,                         XKB_KEY_XF86AudioRaiseVolume, spawn,SHCMD("pamixer --allow-boost -i 5 && sigblock -b vol") },
+	{ 0,                         XKB_KEY_XF86AudioLowerVolume, spawn,SHCMD("pamixer --allow-boost -d 5 && sigblock -b vol") },
+	{ MODKEY,                    XKB_KEY_bracketright,    spawn,     SHCMD("pamixer --allow-boost -i 5 && sigblock -b vol") },
+	{ MODKEY,                    XKB_KEY_bracketleft,     spawn,     SHCMD("pamixer --allow-boost -d 5 && sigblock -b vol") },
+
+	/* Monitor brightness controls */
+	{ 0,                         XKB_KEY_XF86MonBrightnessUp,  spawn,SHCMD("brightnessctl s 10%+") },
+	{ 0,                         XKB_KEY_XF86MonBrightnessDown,spawn,SHCMD("brightnessctl s 10%-") },
+
+	/* Notification controls */
+	{ WLR_MODIFIER_CTRL,                    XKB_KEY_space, spawn,      SHCMD("makoctl dismiss")},
+	{ WLR_MODIFIER_CTRL|WLR_MODIFIER_SHIFT, XKB_KEY_space, spawn,      SHCMD("makoctl dismiss --all")},
+	{ WLR_MODIFIER_CTRL|MODKEY,             XKB_KEY_space, spawn,      SHCMD("makoctl restore")},
+
+	/* Gaps */
+	{ MODKEY,                    XKB_KEY_minus,      setgaps,        {.i = -1} },
+	{ MODKEY,                    XKB_KEY_equal,      setgaps,        {.i = +1} },
+	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_plus,       setgaps,        {.i =  0} },
+	{ MODKEY,                    XKB_KEY_a,          togglegaps,     {0} },
+
 	TAGKEYS(          XKB_KEY_1, XKB_KEY_exclam,                     0),
 	TAGKEYS(          XKB_KEY_2, XKB_KEY_at,                         1),
 	TAGKEYS(          XKB_KEY_3, XKB_KEY_numbersign,                 2),
@@ -158,7 +209,7 @@ static const Key keys[] = {
 	TAGKEYS(          XKB_KEY_7, XKB_KEY_ampersand,                  6),
 	TAGKEYS(          XKB_KEY_8, XKB_KEY_asterisk,                   7),
 	TAGKEYS(          XKB_KEY_9, XKB_KEY_parenleft,                  8),
-	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_Q,          quit,           {0} },
+	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_BackSpace,          quit,           {0} },
 
 	/* Ctrl-Alt-Backspace and Ctrl-Alt-Fx used to be handled by X server */
 	{ WLR_MODIFIER_CTRL|WLR_MODIFIER_ALT,XKB_KEY_Terminate_Server, quit, {0} },
