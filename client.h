@@ -152,6 +152,18 @@ client_get_clip(Client *c, struct wlr_box *clip)
 	clip->y = xdg_geom.y;
 }
 
+static inline int
+client_get_pid(Client *c)
+{
+	pid_t pid;
+#ifdef XWAYLAND
+	if (client_is_x11(c))
+		return c->surface.xwayland->pid;
+#endif
+	wl_client_get_credentials(c->surface.xdg->client->client, &pid, NULL, NULL);
+	return pid;
+}
+
 static inline void
 client_get_geometry(Client *c, struct wlr_box *geom)
 {
